@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "awscleaner"
+dynamic = ["version"]
+description = "Clean up unused AWS resources based on awsweeper and resource tracking"
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.8"
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+s3 = ["boto3>=1.20"]
+test = ["pytest>=6.0"]
+lint = ["black", "pycodestyle", "isort", "inspektor"]
+dev = ["awscleaner[test,lint]", "setuptools-scm>=8", "build", "twine"]
+
+[project.scripts]
+awscleaner = "awscleaner.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["awscleaner*"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "node-and-date"
+
+[tool.black]
+line-length = 79
+target-version = ["py38"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.isort]
+profile = "black"
