@@ -26,3 +26,8 @@ check:
 	$(PYTHON) -m black --check -- $(shell git ls-files -- "*.py")
 	$(PYTHON) -m isort --check-only -- $(shell git ls-files -- "*.py")
 	$(PYTHON) -m pytest
+
+reformat:
+	$(PYTHON) -m black -- $(shell git ls-files -- "*.py")
+	$(PYTHON) -m isort -- $(shell git ls-files -- "*.py")
+	$(PYTHON) -m pytest
