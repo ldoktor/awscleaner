@@ -13,6 +13,7 @@
 #
 # Copyright: Red Hat Inc. 2025
 # Author: Lukas Doktor <ldoktor@redhat.com>
+import os
 import subprocess
 import sys
 
@@ -43,6 +44,12 @@ class AwsweeperRunner:
         if result.returncode != 0:
             print("Error running awsweeper:", result.stderr, file=sys.stderr)
             sys.exit(1)
+        elif os.environ.get("DEBUG", "no").lower() == "yes":
+            print(
+                f"awsweeper stdout:\n{result.stdout}\nawsweeper stderr:\n"
+                f"{result.stderr}",
+                file=sys.stderr,
+            )
 
         try:
             return yaml.safe_load(result.stdout) or []
