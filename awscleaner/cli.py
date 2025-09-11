@@ -14,6 +14,7 @@
 # Copyright: Red Hat Inc. 2025
 # Author: Lukas Doktor <ldoktor@redhat.com>
 import argparse
+import shlex
 
 from .cleaner import AwsResourceCleaner
 
@@ -73,9 +74,10 @@ def main():
     )
     parser.add_argument(
         "--awsweeper-args",
-        help="Extra arguments used when '--awsweeper-file' is not used "
-        "('--dry-run --output yaml' is always added)",
-        nargs="+",
+        help="Escaped extra arguments used when '--awsweeper-file' is not "
+        "used ('--dry-run --output yaml' is always added)",
+        type=shlex.split,
+        default=[],
     )
 
     parser.add_argument(
