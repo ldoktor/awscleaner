@@ -142,9 +142,8 @@ class AwsResourceCleaner:
                 continue
 
             seen = resources_dict.get(key, None)
-            print(f"seen {seen}")
             if seen is None:
-                print(f"Adding __seen__ to {r}")
+                print(f"Adding __seen__ to {r}", file=sys.stderr)
                 seen = time.time()
                 r["__seen__"] = seen
             if seen < deadline:
@@ -163,7 +162,10 @@ class AwsResourceCleaner:
         :type updated_resources: list
         """
         if self.dry_run:
-            print(f"[DRY RUN] Not updating {self.resources_file}")
+            print(
+                f"[DRY RUN] Not updating {self.resources_file}",
+                file=sys.stderr,
+            )
         else:
             ResourceIO.dump(self.resources_file, updated_resources)
 
@@ -185,6 +187,9 @@ class AwsResourceCleaner:
 
         if self.cleanup_file:
             if self.dry_run:
-                print(f"[DRY RUN] Not writing {self.cleanup_file}")
+                print(
+                    f"[DRY RUN] Not writing {self.cleanup_file}",
+                    file=sys.stderr,
+                )
             else:
                 ResourceIO.dump(self.cleanup_file, dict(grouped))
