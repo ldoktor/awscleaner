@@ -9,6 +9,7 @@ all:
 	@echo "  make develop   - Install in editable/development mode"
 	@echo "  make clean     - Remove build, cache, and artifacts"
 	@echo "  make test      - Run unit tests with pytest"
+	@echo "  make reformat  - Reformat the sources with black/isort
 
 install:
 	@pip install .
@@ -30,4 +31,3 @@ check:
 reformat:
 	$(PYTHON) -m black -- $(shell git ls-files -- "*.py")
 	$(PYTHON) -m isort -- $(shell git ls-files -- "*.py")
-	$(PYTHON) -m pytest
