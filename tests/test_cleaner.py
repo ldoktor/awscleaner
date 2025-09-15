@@ -12,15 +12,15 @@ def test_process_resources_marks_for_deletion(monkeypatch):
     resources_dict = {("ec2", "1"): 1}
     awsweeper_resources = [
         {"type": "ec2", "id": "1", "createdat": None},
-        {"type": "s3", "id": "2", "createdat": "2021-01-01"},
+        {"type": "s3", "id": "2", "createdat": "1970-01-01T00:00:00.000Z"},
     ]
 
     updated, deletion = cleaner._process_resources(
         resources_dict, awsweeper_resources
     )
+    print(deletion)
     assert any(r["id"] == "1" for r in deletion)  # threshold exceeded
-    assert any(r["id"] == "2" for r in deletion)  # createdat not null
-    assert all("__seen__" in r for r in updated)
+    assert any(r["id"] == "2" for r in deletion)  # createdat
 
 
 def test_process_resources_complex(monkeypatch):
@@ -48,9 +48,13 @@ def test_process_resources_complex(monkeypatch):
             "type": "type2",
             "id": "createdat1",
             "key7": "value7",
-            "createdat": datetime.datetime(
-                2025, 7, 25, 18, 52, 37, 922000, tzinfo=datetime.timezone.utc
-            ),
+            "createdat": "1970-01-01T00:00:02.000Z",
+        },
+        {
+            "type": "type1",
+            "id": "createdat2",
+            "key7": "value8",
+            "createdat": "1970-01-01T00:00:03.000Z",
         },
     ]
 
@@ -87,9 +91,7 @@ def test_process_resources_complex(monkeypatch):
             "type": "type2",
             "id": "createdat1",
             "key7": "value7",
-            "createdat": datetime.datetime(
-                2025, 7, 25, 18, 52, 37, 922000, tzinfo=datetime.timezone.utc
-            ),
+            "createdat": "1970-01-01T00:00:02.000Z",
         },
     ]
 

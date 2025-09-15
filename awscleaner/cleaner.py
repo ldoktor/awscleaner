@@ -19,6 +19,7 @@ from collections import defaultdict
 from pprint import pprint
 
 import yaml
+from dateutil.parser import isoparse
 
 from .awsweeper import AwsweeperRunner
 from .io_utils import ResourceIO
@@ -137,9 +138,18 @@ class AwsResourceCleaner:
             key = (r["type"], r["id"])
 
             if r.get("createdat") is not None:
-                pprint(r, sys.stderr)
-                deletion_list.append(r)
-                continue
+                try:
+                    seen = r["createdat"]
+                    if isinstance(seen, str):
+                        seen = isoparse(seen)
+                    seen = seen.timestamp()
+                    if seen < deadline:
+                        pprint(r, sys.stderr)
+                        deletion_list.append(r)
+                        continue
+                    continue
+                except ValueError:
+                    print(f"Unable to parse createdat of {r}", file=sys.stderr)
 
             seen = resources_dict.get(key, None)
             if seen is None:
