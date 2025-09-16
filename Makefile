@@ -15,7 +15,7 @@ install:
 	@pip install .
 
 develop:
-	@pip install -e ".[s3]"
+	@pip install -e ".[dev]"
 
 clean:
 	@rm -rf build dist *.egg-info
