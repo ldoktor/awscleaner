@@ -48,6 +48,7 @@ class AwsResourceCleaner:
         dry_run=False,
         awsweeper_file=None,
         awsweeper_args=None,
+        tag_regexps=None
     ):
         """
         Initialize the AwsResourceCleaner.
@@ -69,6 +70,7 @@ class AwsResourceCleaner:
         self.dry_run = dry_run
         self.awsweeper_file = awsweeper_file
         self.awsweeper_args = awsweeper_args
+        self.tag_regexps = tag_regexps if tag_regexps is not None else []
 
     def run(self):
         """
@@ -114,6 +116,34 @@ class AwsResourceCleaner:
             return ResourceIO.load(self.awsweeper_file)
         return AwsweeperRunner.run(self.awsweeper_args)
 
+    def _get_deadline(self, resource, default_deadline):
+        """
+        Get deadline based on the resource and the tag regexps
+
+        :param resource: resource dict
+        :param default_deadline: default deadline (when no rule applies)
+        :return: Deadline - older resources than this datetime should be
+                 removed
+        :rtype: number
+        """
+        threshold = None
+        for tkey, tvalue in resource.get("tags", {}).items():
+            tkey = tkey if isinstance(tkey, str) else ""
+            tvalue = tvalue if isinstance(tvalue, str) else ""
+            for rule, regexp in self.tag_regexps:
+                if regexp.match(tkey) or regexp.match(tvalue):
+                    if threshold is None:
+                        print(f"Overriding threshold to {rule}",
+                              file=sys.stderr)
+                        threshold = rule
+                    elif threshold > rule:
+                        print(f"Overriding threshold to {rule}",
+                              file=sys.stderr)
+                        threshold = rule
+        if threshold is None:
+            return default_deadline
+        return time.time() - threshold
+
     def _process_resources(self, resources_dict, awsweeper_resources):
         """
         Process AWS resources to determine which should be deleted.
@@ -132,10 +162,16 @@ class AwsResourceCleaner:
         """
         updated_resources = {}
         deletion_list = []
-        deadline = time.time() - self.THRESHOLD
+        default_deadline = time.time() - self.THRESHOLD
+        # Avoid going through tags if no rules defined
+        if not self.tag_regexps:
+            get_deadline = lambda _1, _2: default_deadline
+        else:
+            get_deadline = self._get_deadline
 
         for r in awsweeper_resources:
             key = (r["type"], r["id"])
+            deadline = get_deadline(r, default_deadline)
 
             if r.get("createdat") is not None:
                 try:

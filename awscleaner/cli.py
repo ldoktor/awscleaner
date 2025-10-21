@@ -17,6 +17,7 @@ import argparse
 import shlex
 
 from .cleaner import AwsResourceCleaner
+import re
 
 
 def parse_age(value: str) -> float:
@@ -26,9 +27,9 @@ def parse_age(value: str) -> float:
         "s": 1.0,  # second
         "m": 60.0,  # minute
         "h": 3600.0,  # hour
-        "D": 86400.0,  # day
-        "M": 2592000.0,  # month (approx 30 days)
-        "Y": 31536000.0,  # year (approx 365 days)
+        "d": 86400.0,  # day
+        "m": 2592000.0,  # month (approx 30 days)
+        "y": 31536000.0,  # year (approx 365 days)
     }
 
     # Extract last character as unit, if valid
@@ -41,6 +42,11 @@ def parse_age(value: str) -> float:
 
     return num * units[unit]
 
+
+def parse_regexp(value: str) -> tuple:
+    """Parses regexps item into tuple(seconds, compiled_regexp)"""
+    age, regexp = value.split(':', 1)
+    return (parse_age(age), re.compile(regexp))
 
 def main():
     """
@@ -87,6 +93,15 @@ def main():
         type=parse_age,
     )
 
+    parser.add_argument(
+        "--tag-regexps",
+        help="Define special rulles for name/tag regexp, eg '12h:ci-.*' "
+        "overrides age to 12h for all resources tagged with 'ci-.*' (any tag "
+        " or value)",
+        nargs="*",
+        type=parse_regexp
+    )
+
     args = parser.parse_args()
 
     cleaner = AwsResourceCleaner(
@@ -95,6 +110,7 @@ def main():
         dry_run=args.dry_run,
         awsweeper_file=args.awsweeper_file,
         awsweeper_args=args.awsweeper_args,
+        tag_regexps=args.tag_regexps
     )
     if isinstance(args.age, float):
         cleaner.THRESHOLD = args.age
