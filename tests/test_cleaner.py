@@ -1,9 +1,9 @@
 import datetime
+import re
 
 import pytest
 
 from awscleaner.cleaner import AwsResourceCleaner
-import re
 
 
 def sort_key(r):
@@ -115,12 +115,14 @@ def test_tag_regexp(monkeypatch):
         (-1, re.compile(r".*delete_5.*")),
         (9999999, re.compile(r"keep.*")),
         (9999998, re.compile(r".*-createdat1.*")),
-        (-2, re.compile(r"^createdat-will-be.*"))]
+        (-2, re.compile(r"^createdat-will-be.*")),
+    ]
     monkeypatch.setattr("awscleaner.cleaner.time.time", lambda: 172803)
 
     # Simulated resources.yaml (previously tracked resources)
     resources_dict = {
         ("type1", "id_delete1"): 5,
+        ("type1", "by_id_delete_5"): 5,
         ("type1", "id_default_delete1"): 2,
         ("type1", "id_keep1"): 1,
         ("type2", "id_default_delete2"): 0,
@@ -129,12 +131,38 @@ def test_tag_regexp(monkeypatch):
 
     # Simulated awsweeper output
     awsweeper_resources = [
-        {"type": "type1", "id": "id_delete1", "key1": "value1", "__seen__": 5,
-         "tags": {"foo/delete_5": True}},
-        {"type": "type1", "id": "id_default_delete1", "key2": "value2", "__seen__": 2},
-        {"type": "type1", "id": "id_keep1", "key3": "value3", "__seen__": 1,
-         "tags": {"Name": "keep-mee"}},
-        {"type": "type2", "id": "id_default_delete2", "key4": "value4", "__seen__": 0},
+        {
+            "type": "type1",
+            "id": "id_delete1",
+            "key1": "value1",
+            "__seen__": 5,
+            "tags": {"foo/delete_5": True},
+        },
+        {
+            "type": "type1",
+            "id": "by_id_delete_5",
+            "key1": "value1",
+            "__seen__": 5,
+        },
+        {
+            "type": "type1",
+            "id": "id_default_delete1",
+            "key2": "value2",
+            "__seen__": 2,
+        },
+        {
+            "type": "type1",
+            "id": "id_keep1",
+            "key3": "value3",
+            "__seen__": 1,
+            "tags": {"Name": "keep-mee"},
+        },
+        {
+            "type": "type2",
+            "id": "id_default_delete2",
+            "key4": "value4",
+            "__seen__": 0,
+        },
         {"type": "type1", "id": "extra_type1", "key5": "value5"},
         {"type": "awsweep_type", "id": "new_type", "key6": "value6"},
         {
@@ -142,14 +170,14 @@ def test_tag_regexp(monkeypatch):
             "id": "keep_createdat",
             "key7": "value7",
             "createdat": "1970-01-01T00:00:02.000Z",
-            "tags": {"this-createdat1-should-be-kept": None}
+            "tags": {"this-createdat1-should-be-kept": None},
         },
         {
             "type": "type1",
             "id": "delete_createdat",
             "key7": "value8",
             "createdat": "1970-01-01T00:00:03.000Z",
-            "tags": {"some-random-attribute": "createdat-will-be-deleted"}
+            "tags": {"some-random-attribute": "createdat-will-be-deleted"},
         },
     ]
 
@@ -159,31 +187,87 @@ def test_tag_regexp(monkeypatch):
 
     # ---- Expected Updated Resources ----
     expected_updated = [
-        {'type': 'type1', 'id': 'id_delete1', 'key1': 'value1',
-         '__seen__': 5, 'tags': {'foo/delete_5': True}},
-        {'type': 'type1', 'id': 'id_default_delete1',
-         'key2': 'value2', '__seen__': 2},
-        {'type': 'type1', 'id': 'id_keep1', 'key3': 'value3',
-         '__seen__': 1, 'tags': {'Name': 'keep-mee'}},
-        {'type': 'type2', 'id': 'id_default_delete2',
-         'key4': 'value4', '__seen__': 0},
-        {'type': 'type1', 'id': 'extra_type1', 'key5': 'value5',
-         '__seen__': 172803},
-        {'type': 'awsweep_type', 'id': 'new_type', 'key6': 'value6',
-         '__seen__': 172803}]
-
+        {
+            "type": "type1",
+            "id": "id_delete1",
+            "key1": "value1",
+            "__seen__": 5,
+            "tags": {"foo/delete_5": True},
+        },
+        {
+            "type": "type1",
+            "id": "by_id_delete_5",
+            "key1": "value1",
+            "__seen__": 5,
+        },
+        {
+            "type": "type1",
+            "id": "id_default_delete1",
+            "key2": "value2",
+            "__seen__": 2,
+        },
+        {
+            "type": "type1",
+            "id": "id_keep1",
+            "key3": "value3",
+            "__seen__": 1,
+            "tags": {"Name": "keep-mee"},
+        },
+        {
+            "type": "type2",
+            "id": "id_default_delete2",
+            "key4": "value4",
+            "__seen__": 0,
+        },
+        {
+            "type": "type1",
+            "id": "extra_type1",
+            "key5": "value5",
+            "__seen__": 172803,
+        },
+        {
+            "type": "awsweep_type",
+            "id": "new_type",
+            "key6": "value6",
+            "__seen__": 172803,
+        },
+    ]
 
     # ---- Expected Deletions ----
     expected_deletion = [
-        {'type': 'type1', 'id': 'id_delete1', 'key1': 'value1',
-         '__seen__': 5, 'tags': {'foo/delete_5': True}},
-        {'type': 'type1', 'id': 'id_default_delete1',
-         'key2': 'value2', '__seen__': 2},
-        {'type': 'type2', 'id': 'id_default_delete2',
-         'key4': 'value4', '__seen__': 0},
-        {'type': 'type1', 'id': 'delete_createdat',
-         'key7': 'value8', 'createdat': '1970-01-01T00:00:03.000Z',
-         'tags': {'some-random-attribute': 'createdat-will-be-deleted'}}]
+        {
+            "type": "type1",
+            "id": "id_delete1",
+            "key1": "value1",
+            "__seen__": 5,
+            "tags": {"foo/delete_5": True},
+        },
+        {
+            "type": "type1",
+            "id": "by_id_delete_5",
+            "key1": "value1",
+            "__seen__": 5,
+        },
+        {
+            "type": "type1",
+            "id": "id_default_delete1",
+            "key2": "value2",
+            "__seen__": 2,
+        },
+        {
+            "type": "type2",
+            "id": "id_default_delete2",
+            "key4": "value4",
+            "__seen__": 0,
+        },
+        {
+            "type": "type1",
+            "id": "delete_createdat",
+            "key7": "value8",
+            "createdat": "1970-01-01T00:00:03.000Z",
+            "tags": {"some-random-attribute": "createdat-will-be-deleted"},
+        },
+    ]
 
     # Sort for stable comparison
     assert sorted(updated, key=sort_key) == sorted(
@@ -192,7 +276,7 @@ def test_tag_regexp(monkeypatch):
     assert sorted(deletion, key=sort_key) == sorted(
         expected_deletion, key=sort_key
     )
-    raise False
+
 
 """
 def test_save_cleanup(monkeypatch):
