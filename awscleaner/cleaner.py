@@ -48,7 +48,7 @@ class AwsResourceCleaner:
         dry_run=False,
         awsweeper_file=None,
         awsweeper_args=None,
-        tag_regexps=None
+        tag_regexps=None,
     ):
         """
         Initialize the AwsResourceCleaner.
@@ -127,18 +127,25 @@ class AwsResourceCleaner:
         :rtype: number
         """
         threshold = None
-        for tkey, tvalue in resource.get("tags", {}).items():
+        tags = list(resource.get("tags", {}).items())
+        rid = resource.get("id")
+        if rid:
+            tags.append((rid, rid))
+        for tkey, tvalue in tags:
             tkey = tkey if isinstance(tkey, str) else ""
             tvalue = tvalue if isinstance(tvalue, str) else ""
             for rule, regexp in self.tag_regexps:
+                print(f"{rule} {regexp} {tkey} {tvalue}")
                 if regexp.match(tkey) or regexp.match(tvalue):
                     if threshold is None:
-                        print(f"Overriding threshold to {rule}",
-                              file=sys.stderr)
+                        print(
+                            f"Overriding threshold to {rule}", file=sys.stderr
+                        )
                         threshold = rule
                     elif threshold > rule:
-                        print(f"Overriding threshold to {rule}",
-                              file=sys.stderr)
+                        print(
+                            f"Overriding threshold to {rule}", file=sys.stderr
+                        )
                         threshold = rule
         if threshold is None:
             return default_deadline

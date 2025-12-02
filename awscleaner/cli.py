@@ -14,10 +14,10 @@
 # Copyright: Red Hat Inc. 2025
 # Author: Lukas Doktor <ldoktor@redhat.com>
 import argparse
+import re
 import shlex
 
 from .cleaner import AwsResourceCleaner
-import re
 
 
 def parse_age(value: str) -> float:
@@ -45,8 +45,9 @@ def parse_age(value: str) -> float:
 
 def parse_regexp(value: str) -> tuple:
     """Parses regexps item into tuple(seconds, compiled_regexp)"""
-    age, regexp = value.split(':', 1)
+    age, regexp = value.split(":", 1)
     return (parse_age(age), re.compile(regexp))
+
 
 def main():
     """
@@ -99,7 +100,7 @@ def main():
         "overrides age to 12h for all resources tagged with 'ci-.*' (any tag "
         " or value)",
         nargs="*",
-        type=parse_regexp
+        type=parse_regexp,
     )
 
     args = parser.parse_args()
@@ -110,7 +111,7 @@ def main():
         dry_run=args.dry_run,
         awsweeper_file=args.awsweeper_file,
         awsweeper_args=args.awsweeper_args,
-        tag_regexps=args.tag_regexps
+        tag_regexps=args.tag_regexps,
     )
     if isinstance(args.age, float):
         cleaner.THRESHOLD = args.age
