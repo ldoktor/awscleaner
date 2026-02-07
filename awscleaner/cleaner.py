@@ -135,7 +135,6 @@ class AwsResourceCleaner:
             tkey = tkey if isinstance(tkey, str) else ""
             tvalue = tvalue if isinstance(tvalue, str) else ""
             for rule, regexp in self.tag_regexps:
-                print(f"{rule} {regexp} {tkey} {tvalue}")
                 if regexp.match(tkey) or regexp.match(tvalue):
                     if threshold is None:
                         print(
