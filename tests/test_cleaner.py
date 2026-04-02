@@ -48,6 +48,7 @@ def test_process_resources_complex(monkeypatch):
         {"type": "type1", "id": "id_seen_2", "key2": "value2", "__seen__": 2},
         {"type": "type1", "id": "id_seen_1", "key3": "value3", "__seen__": 1},
         {"type": "type2", "id": "id_seen_0", "key4": "value4", "__seen__": 0},
+        {"type": "aws_iam_user_policy", "id": "dependent", "__seen__": 0},
         {"type": "type1", "id": "extra_type1", "key5": "value5"},
         {"type": "awsweep_type", "id": "new_type", "key6": "value6"},
         {

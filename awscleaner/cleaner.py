@@ -65,6 +65,9 @@ class AwsResourceCleaner:
         :param awsweeper_args: Arguments for awsweeper runner when used internally.
         :type awsweeper_args: dict, optional
         """
+        # awsweeper resource types dependent on another which can not be
+        # cleaned independently.
+        self._dependent_types = {"aws_iam_user_policy"}
         self.resources_file = resources_file
         self.cleanup_file = cleanup_file
         self.dry_run = dry_run
@@ -176,6 +179,8 @@ class AwsResourceCleaner:
             get_deadline = self._get_deadline
 
         for r in awsweeper_resources:
+            if r["type"] in self._dependent_types:
+                continue
             key = (r["type"], r["id"])
             deadline = get_deadline(r, default_deadline)
 
