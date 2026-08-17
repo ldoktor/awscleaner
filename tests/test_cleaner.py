@@ -326,7 +326,11 @@ def test_save_cleanup(monkeypatch):
 def test_delete_eks_clusters_success(monkeypatch):
     cleaner = AwsResourceCleaner("resources.yaml", eksctl=True)
 
+    commands = []
+
     def fake_run(cmd, **kwargs):
+        commands.append(cmd)
+
         class Result:
             returncode = 0
             stdout = ""
@@ -337,13 +341,33 @@ def test_delete_eks_clusters_success(monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     resources = [
-        {"type": "aws_eks_cluster", "id": "my-cluster"},
+        {"type": "aws_eks_cluster", "id": "my-cluster", "region": "us-west-2"},
         {"type": "ec2", "id": "i-123"},
         {"type": "aws_eks_cluster", "id": "other-cluster"},
     ]
 
     result = cleaner._delete_eks_clusters(resources)
     assert result == [{"type": "ec2", "id": "i-123"}]
+    assert commands[0] == [
+        "eksctl",
+        "delete",
+        "cluster",
+        "--name",
+        "my-cluster",
+        "--force",
+        "--wait",
+        "--region",
+        "us-west-2",
+    ]
+    assert commands[1] == [
+        "eksctl",
+        "delete",
+        "cluster",
+        "--name",
+        "other-cluster",
+        "--force",
+        "--wait",
+    ]
 
 
 def test_delete_eks_clusters_failure(monkeypatch):
