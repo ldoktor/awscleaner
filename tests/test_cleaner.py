@@ -1,5 +1,6 @@
 import datetime
 import re
+import subprocess
 
 import pytest
 
@@ -320,3 +321,160 @@ def test_save_cleanup(monkeypatch):
     assert captured["filename"] == "cleanup.yaml"
     assert captured["data"] == expected_grouped
 """
+
+
+def test_delete_eks_clusters_success(monkeypatch):
+    cleaner = AwsResourceCleaner("resources.yaml", eksctl=True)
+
+    def fake_run(cmd, **kwargs):
+        class Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    resources = [
+        {"type": "aws_eks_cluster", "id": "my-cluster"},
+        {"type": "ec2", "id": "i-123"},
+        {"type": "aws_eks_cluster", "id": "other-cluster"},
+    ]
+
+    result = cleaner._delete_eks_clusters(resources)
+    assert result == [{"type": "ec2", "id": "i-123"}]
+
+
+def test_delete_eks_clusters_failure(monkeypatch):
+    cleaner = AwsResourceCleaner("resources.yaml", eksctl=True)
+
+    def fake_run(cmd, **kwargs):
+        class Result:
+            returncode = 1
+            stdout = ""
+            stderr = "cluster not found"
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    resources = [
+        {"type": "aws_eks_cluster", "id": "my-cluster"},
+        {"type": "ec2", "id": "i-123"},
+    ]
+
+    result = cleaner._delete_eks_clusters(resources)
+    assert result == [
+        {"type": "aws_eks_cluster", "id": "my-cluster"},
+        {"type": "ec2", "id": "i-123"},
+    ]
+
+
+def test_delete_eks_clusters_mixed(monkeypatch):
+    cleaner = AwsResourceCleaner("resources.yaml", eksctl=True)
+
+    call_count = {"n": 0}
+
+    def fake_run(cmd, **kwargs):
+        call_count["n"] += 1
+
+        class Result:
+            stdout = ""
+            stderr = "error"
+
+        if cmd[4] == "good-cluster":
+            Result.returncode = 0
+        else:
+            Result.returncode = 1
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    resources = [
+        {"type": "aws_eks_cluster", "id": "good-cluster"},
+        {"type": "aws_eks_cluster", "id": "bad-cluster"},
+        {"type": "s3", "id": "bucket-1"},
+    ]
+
+    result = cleaner._delete_eks_clusters(resources)
+    assert result == [
+        {"type": "aws_eks_cluster", "id": "bad-cluster"},
+        {"type": "s3", "id": "bucket-1"},
+    ]
+    assert call_count["n"] == 2
+
+
+def test_delete_eks_clusters_dry_run(monkeypatch):
+    cleaner = AwsResourceCleaner("resources.yaml", eksctl=True, dry_run=True)
+
+    run_called = {"called": False}
+
+    def fake_run(cmd, **kwargs):
+        run_called["called"] = True
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    resources = [
+        {"type": "aws_eks_cluster", "id": "my-cluster"},
+        {"type": "ec2", "id": "i-123"},
+    ]
+
+    result = cleaner._delete_eks_clusters(resources)
+    assert not run_called["called"]
+    assert result == [
+        {"type": "ec2", "id": "i-123"},
+    ]
+
+
+def test_delete_eks_clusters_no_eks(monkeypatch):
+    cleaner = AwsResourceCleaner("resources.yaml", eksctl=True)
+
+    resources = [
+        {"type": "ec2", "id": "i-123"},
+        {"type": "s3", "id": "bucket-1"},
+    ]
+
+    result = cleaner._delete_eks_clusters(resources)
+    assert result == resources
+
+
+def test_eksctl_only_deletes_from_deletion_list(monkeypatch):
+    cleaner = AwsResourceCleaner("resources.yaml", eksctl=True)
+    monkeypatch.setattr("awscleaner.cleaner.time.time", lambda: 172802)
+
+    eksctl_calls = []
+
+    def fake_run(cmd, **kwargs):
+        eksctl_calls.append(cmd[4])
+
+        class Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    awsweeper_resources = [
+        {
+            "type": "aws_eks_cluster",
+            "id": "old-eks",
+            "createdat": "1970-01-01T00:00:00Z",
+        },
+        {
+            "type": "aws_eks_cluster",
+            "id": "new-eks",
+            "createdat": "2030-01-01T00:00:00Z",
+        },
+        {"type": "ec2", "id": "old-ec2", "createdat": "1970-01-01T00:00:00Z"},
+    ]
+
+    _, deletion_list = cleaner._process_resources({}, awsweeper_resources)
+    result = cleaner._delete_eks_clusters(deletion_list)
+
+    assert eksctl_calls == ["old-eks"]
+    assert result == [
+        {"type": "ec2", "id": "old-ec2", "createdat": "1970-01-01T00:00:00Z"},
+    ]
