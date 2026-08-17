@@ -145,19 +145,25 @@ class AwsResourceCleaner:
                 remaining.append(r)
                 continue
             cluster_name = r["id"]
+            region = r.get("region")
+            region_msg = f" in {region}" if region else ""
             if self.dry_run:
                 print(
-                    f"[DRY RUN] Would delete EKS cluster '{cluster_name}' "
-                    f"via eksctl",
+                    f"[DRY RUN] Would delete EKS cluster '{cluster_name}'"
+                    f"{region_msg} via eksctl",
                     file=sys.stderr,
                 )
                 continue
             print(
-                f"Deleting EKS cluster '{cluster_name}' via eksctl...",
+                f"Deleting EKS cluster '{cluster_name}'{region_msg}"
+                f" via eksctl...",
                 file=sys.stderr,
             )
+            cmd = ["eksctl", "delete", "cluster", "--name", cluster_name]
+            if region:
+                cmd += ["--region", region]
             result = subprocess.run(
-                ["eksctl", "delete", "cluster", "--name", cluster_name],
+                cmd,
                 capture_output=True,
                 text=True,
                 check=False,
