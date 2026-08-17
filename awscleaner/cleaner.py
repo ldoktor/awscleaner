@@ -13,6 +13,7 @@
 #
 # Copyright: Red Hat Inc. 2025
 # Author: Lukas Doktor <ldoktor@redhat.com>
+import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -49,6 +50,7 @@ class AwsResourceCleaner:
         awsweeper_file=None,
         awsweeper_args=None,
         tag_regexps=None,
+        eksctl=False,
     ):
         """
         Initialize the AwsResourceCleaner.
@@ -64,6 +66,8 @@ class AwsResourceCleaner:
         :type awsweeper_file: str, optional
         :param awsweeper_args: Arguments for awsweeper runner when used internally.
         :type awsweeper_args: dict, optional
+        :param eksctl: If True, delete EKS clusters via eksctl before cleanup.
+        :type eksctl: bool
         """
         # awsweeper resource types dependent on another which can not be
         # cleaned independently.
@@ -74,6 +78,7 @@ class AwsResourceCleaner:
         self.awsweeper_file = awsweeper_file
         self.awsweeper_args = awsweeper_args
         self.tag_regexps = tag_regexps if tag_regexps is not None else []
+        self.eksctl = eksctl
 
     def run(self):
         """
@@ -91,6 +96,9 @@ class AwsResourceCleaner:
         updated_resources, deletion_list = self._process_resources(
             resources, awsweeper_resources
         )
+
+        if self.eksctl:
+            deletion_list = self._delete_eks_clusters(deletion_list)
 
         self._save_resources(updated_resources)
         self._save_cleanup(deletion_list)
@@ -118,6 +126,55 @@ class AwsResourceCleaner:
         if self.awsweeper_file:
             return ResourceIO.load(self.awsweeper_file)
         return AwsweeperRunner.run(self.awsweeper_args)
+
+    def _delete_eks_clusters(self, awsweeper_resources):
+        """
+        Delete aws_eks_cluster resources via eksctl.
+
+        Iterates through EKS cluster resources, attempts to delete each via
+        eksctl, and removes successfully deleted ones from the resource list.
+
+        :param awsweeper_resources: List of resources from awsweeper output.
+        :type awsweeper_resources: list
+        :returns: Filtered resource list with successfully deleted clusters removed.
+        :rtype: list
+        """
+        remaining = []
+        for r in awsweeper_resources:
+            if r["type"] != "aws_eks_cluster":
+                remaining.append(r)
+                continue
+            cluster_name = r["id"]
+            if self.dry_run:
+                print(
+                    f"[DRY RUN] Would delete EKS cluster '{cluster_name}' "
+                    f"via eksctl",
+                    file=sys.stderr,
+                )
+                continue
+            print(
+                f"Deleting EKS cluster '{cluster_name}' via eksctl...",
+                file=sys.stderr,
+            )
+            result = subprocess.run(
+                ["eksctl", "delete", "cluster", "--name", cluster_name],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode == 0:
+                print(
+                    f"Successfully deleted EKS cluster '{cluster_name}'",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    f"Failed to delete EKS cluster '{cluster_name}': "
+                    f"{result.stderr}",
+                    file=sys.stderr,
+                )
+                remaining.append(r)
+        return remaining
 
     def _get_deadline(self, resource, default_deadline):
         """

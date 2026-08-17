@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-s3 = ["boto3>=1.20"]
+s3 = ["boto3>=1.20", "botocore[crt]"]
 test = ["pytest>=6.0"]
 lint = ["black", "pycodestyle", "isort", "inspektor"]
 dev = ["awscleaner[test,lint]", "setuptools-scm>=8", "build", "twine"]
