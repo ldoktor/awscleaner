@@ -159,7 +159,15 @@ class AwsResourceCleaner:
                 f" via eksctl...",
                 file=sys.stderr,
             )
-            cmd = ["eksctl", "delete", "cluster", "--name", cluster_name]
+            cmd = [
+                "eksctl",
+                "delete",
+                "cluster",
+                "--name",
+                cluster_name,
+                "--force",
+                "--wait",
+            ]
             if region:
                 cmd += ["--region", region]
             result = subprocess.run(

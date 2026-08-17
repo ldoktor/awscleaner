@@ -354,6 +354,8 @@ def test_delete_eks_clusters_success(monkeypatch):
         "cluster",
         "--name",
         "my-cluster",
+        "--force",
+        "--wait",
         "--region",
         "us-west-2",
     ]
@@ -363,6 +365,8 @@ def test_delete_eks_clusters_success(monkeypatch):
         "cluster",
         "--name",
         "other-cluster",
+        "--force",
+        "--wait",
     ]
 
 
