@@ -103,6 +103,13 @@ def main():
         type=parse_regexp,
     )
 
+    parser.add_argument(
+        "--eksctl",
+        action="store_true",
+        help="Delete aws_eks_cluster resources via eksctl before cleanup. "
+        "Successfully deleted clusters are removed from the cleanup list.",
+    )
+
     args = parser.parse_args()
 
     cleaner = AwsResourceCleaner(
@@ -112,6 +119,7 @@ def main():
         awsweeper_file=args.awsweeper_file,
         awsweeper_args=args.awsweeper_args,
         tag_regexps=args.tag_regexps,
+        eksctl=args.eksctl,
     )
     if isinstance(args.age, float):
         cleaner.THRESHOLD = args.age
